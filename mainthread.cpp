@@ -1,38 +1,73 @@
 #include <unistd.h>
 #include <string.h>
 #include "controller.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
+#define port 8133
 
 using namespace std;
 typedef unsigned int uint_16;
+typedef struct sockaddr_in sockad;
 
 extern void controller_function(double& u, uint_16 k);
 
 int main() {
     char buf[100];
-    cout << "hello" << endl;
-    while(1) {
-        cin >> buf;
-        if(!strcmp(buf, "exit")) break;
-        double u; uint_16 k = 55;
+    int s_client, s_server;
+    sockad server_addr, client_addr;
+    double u; uint_16 k = 55;
+    controller_function(u, k);
+
+    s_server = socket(AF_INET, SOCK_STREAM, 0);
+    if(s_server < 0) {
+        printf("socket error");
+        return -1;
+    } 
+    bzero(&server_addr, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_addr.sin_port = htons(port);
+
+    int on = 1;
+    if((setsockopt(s_server, SOL_SOCKET, SO_REUSEADDR, &on,sizeof(on))) < 0)
+    {
+        perror("setsockopt failed");
+        exit(EXIT_FAILURE);
+    }
+
+    int err = bind(s_server, (struct sockaddr*)&server_addr, sizeof(server_addr));
+    if(err < 0) {
+        perror("Bind error");
+        return -1;
+    }
+
+    err = listen(s_server, 2);
+    if(err < 0) {
+        perror("Listen error");
+        return -1;
+    }
+
+    while(true) {
+        printf("u = %f, k = %d\n", u, k);
+        socklen_t addrlen = sizeof(struct sockaddr);
         
-        controller_function(u, k); 
+        s_client = 1;
+        s_client = accept(s_server, (struct sockaddr*)&client_addr, &addrlen);
+        if(!s_client) continue;
+        int pid = fork();
 
-        //若收到修改程序的指令，则这一段时间内程序新开一个进程来重新编译修改后的程序并装载，然后forK一个新的子进程，在子进程fork成功后
-        if(!strcmp(buf, "fixctl")) {
-            if(system("g++ -o mainthread mainthread.cpp controller.cpp") < 0) {
-                perror("Compile and build failed!");
-                exit(127);
-            } 
-
-            char* const argv[] = {NULL};
-            int pid = execv("/home/hfyh/thread_homework/mainthread", argv);
-            if(pid < 0) {
-                perror("REPROCESS FAILED\n");
-                exit(-1);
-            }
+        ssize_t size = 0;
+        size = recv(s_client, buf, 100, 0);
+        printf("size=%ld\n", size);
+        printf("buf=%s", buf);
+        if(size == -1) {
+            perror("recv error");
+            continue;
         }
+        int u = atoi(buf);
 
-        sleep(10);
     }
     return 0;
 }
