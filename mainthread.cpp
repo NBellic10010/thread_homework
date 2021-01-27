@@ -49,24 +49,45 @@ int main() {
         return -1;
     }
 
+
     while(true) {
         printf("u = %f, k = %d\n", u, k);
-        socklen_t addrlen = sizeof(struct sockaddr);
-        
         s_client = 1;
+        socklen_t addrlen = sizeof(struct sockaddr);
         s_client = accept(s_server, (struct sockaddr*)&client_addr, &addrlen);
-        
-        if(!s_client) continue;
-        int pid = fork();
+        if(!s_client) {
+            perror("accept error");
+            return -1;
+        }
 
+        //pid_t pid = fork();
         ssize_t size = 0;
         size = recv(s_client, buf, 100, 0);
         if(size == -1) {
             perror("recv error");
-            continue;
+            exit(127);
         }
-        u = atoi(buf);
+        double x = atof(buf);
+        printf("received number %f\n", x);
 
+        double lambda, newu = u;
+        for(lambda = 0.00; lambda <= 1.00; lambda += 0.05) {
+            printf("inside u = %f, k = %d, pid=%d\n", newu, k, getpid());
+            newu = lambda * x + (1 - lambda) * u;
+            sleep(5);
+        }
+        u = newu;
     }
+    
+
+    // if(pid == 0) {
+    //     printf("子进程关闭client，子进程的client为%d\n", s_client);
+    //     close(s_client);
+    // }
+    // else {
+    //     printf("停止父进程\n");
+    //     close(s_server);
+    // }
+        
     return 0;
 }
