@@ -55,18 +55,17 @@ int main() {
         
         s_client = 1;
         s_client = accept(s_server, (struct sockaddr*)&client_addr, &addrlen);
+        
         if(!s_client) continue;
         int pid = fork();
 
         ssize_t size = 0;
         size = recv(s_client, buf, 100, 0);
-        printf("size=%ld\n", size);
-        printf("buf=%s", buf);
         if(size == -1) {
             perror("recv error");
             continue;
         }
-        int u = atoi(buf);
+        u = atoi(buf);
 
     }
     return 0;

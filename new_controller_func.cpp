@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
 
     s = socket(AF_INET, SOCK_STREAM, 0);
     if(s < 0) {
-        printf("socket error\n");
+        perror("socket error");
         return -1;
     }
 
@@ -32,17 +32,24 @@ int main(int argc, char** argv) {
     
     double u; unsigned int k = 55;
     new_controller_func(u, k);
+    printf("%f\n", u);
 
-    int decpt, sign;
-    char* buf = fcvt(u, 4, &decpt, &sign);
-    *(++buf) = '\0';
-    int status = send(s, buf, 20, 0);
-    if(status == -1) perror("send error");
+    while(true) {
+        int decpt, sign;
+        const char* buf = ecvt(u, 1, &decpt, &sign);
+        int status = send(s, buf, 20, 0);
+        printf(buf);
+        if(status == -1) {
+            perror("send error");
+            close(s);
+            return -1;
+        }
+    }
 
     close(s);
     return 0;
 }
 
 void new_controller_func(double& u, unsigned int k) {
-    u = cos((double) k / 45.0);
+    u = 2.0 * sin((double) k / 45.0);
 }
