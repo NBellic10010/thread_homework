@@ -3,6 +3,7 @@
 #include "controller.h"
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <signal.h>
 #include <arpa/inet.h>
 
 #define port 8133
@@ -49,15 +50,26 @@ int main() {
         return -1;
     }
 
-
+    pid_t spid = fork();
     while(true) {
         printf("u = %f, k = %d\n", u, k);
+        
         s_client = 1;
         socklen_t addrlen = sizeof(struct sockaddr);
+        if(spid != 0) {
+            sleep(5);
+            continue;
+        }
         s_client = accept(s_server, (struct sockaddr*)&client_addr, &addrlen);
         if(!s_client) {
             perror("accept error");
             return -1;
+        }
+
+        int status = kill(getppid(), SIGKILL);
+        if(status == -1) {
+            perror("kill failed\n");
+            return -3;
         }
 
         //pid_t pid = fork();
