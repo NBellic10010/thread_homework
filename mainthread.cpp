@@ -56,7 +56,7 @@ int main() {
         
         s_client = 1;
         socklen_t addrlen = sizeof(struct sockaddr);
-        if(spid != 0) {
+        if(spid == 0) {
             sleep(5);
             continue;
         }
@@ -66,7 +66,7 @@ int main() {
             return -1;
         }
 
-        int status = kill(getppid(), SIGKILL);
+        int status = kill(spid, SIGKILL);
         if(status == -1) {
             perror("kill failed\n");
             return -3;
