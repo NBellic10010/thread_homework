@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     double u; unsigned int k = 55;
     if(!status) {
         system("g++ -c new_controller_func.cpp");
-        system("ar -crv ../libraries/libnewcontroller.a g++ -c new_controller_func.o ");
+        system("ar -crv ../libraries/libnewcontroller.a new_controller_func.o ");
     }
     
     close(s);

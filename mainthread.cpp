@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <sstream>
 #include "head.h"
+#include <fcntl.h>
 
 /**
  * 程序主要思想：
@@ -31,6 +32,8 @@ extern void controller_function(double& u, uint_16 k);
 int main() {
     //以下是创建socket过程
     int s_client, s_server;
+    int fd[2];int fd_2[2];
+    char buf[5];
     sockad server_addr, client_addr;
     double u; uint_16 k = 55;
     fold = controller_function;
@@ -65,20 +68,46 @@ int main() {
     }
     //以上是创建socket过程
 
+    int mark1 = pipe(fd);
+    int mark2 = pipe(fd_2);
+    if(mark1 < 0 || mark2 < 0) {
+        perror("pipe error");
+        return -1;
+    }
+
+    int flag = fcntl(fd[0], F_GETFL, 0);
+    if(flag < 0) {
+        perror("fcntl error");
+        return -1;
+    }
+    flag |= O_NONBLOCK;
+    if(fcntl(fd[0], F_SETFL, flag) < 0) {
+        perror("flag set error");
+        return -1;
+    }
+
     //spid为-1是表示只有一个进程，没有子进程
     pid_t spid = -1;
     while(true) {
+        int num;char sbuf[5], fbuf[5];
         //当只有一个进程时，执行fork
         if(spid == -1) spid = fork();
         socklen_t addrlen = sizeof(struct sockaddr);
         //原控制函数
         fold(u, k);
-        printf("u = %f, k = %d\n", u, k++);
+        printf("u = %f, k = %d, pid = %d\n", u, k++, getpid());
         
         s_client = 1;
         
         if(spid == 0) {
-            sleep(5);
+            read(fd[0], fbuf, sizeof(fbuf));
+            int accepted = atoi(fbuf);
+            if(accepted == 1) {
+                sprintf(sbuf, "%d", k);
+                cout << "sbuf is :" << sbuf << ", and pid is " << getpid() << endl;
+                write(fd_2[1], sbuf, sizeof(sbuf));
+            }
+            sleep(2);
             continue;
         }
         //accept函数，由于accept函数是阻塞的，因此我们用两个进程，父进程等待accept,子进程继续控制过程
@@ -88,6 +117,13 @@ int main() {
             perror("accept error");
             continue;
         }
+
+        bzero(fbuf, sizeof(fbuf));
+        sprintf(fbuf, "%d", 1);
+        write(fd[1], fbuf, sizeof(fbuf));
+        read(fd_2[0], sbuf, sizeof(sbuf));
+        k = atoi(sbuf);
+        cout << "buf is " << sbuf << endl;
         
         //若accept成功，杀掉子进程，开始控制函数的切换
         int status = kill(spid, SIGKILL);
@@ -102,10 +138,11 @@ int main() {
         //execvp使进程重生
         execvp("mainthread.cpp", v);
 
-        double lambda, uout;
+        fold(u, k);
+        double lambda, uout = u;
         //使fnew指向新的控制函数
         fnew = new_controller_func;
-        for(lambda = 0.00; lambda <= 1.00; lambda += 0.05) {
+        for(lambda = 0.05; lambda <= 1.00; lambda += 0.05) {
             double unew;
             fold(u, k);
             fnew(unew, k);

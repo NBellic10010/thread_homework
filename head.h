@@ -3,4 +3,4 @@
 
 void new_controller_func(double& u, unsigned int k);
 
-#endif
+#endif  
